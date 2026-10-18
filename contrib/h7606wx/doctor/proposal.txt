@@ -1,0 +1,66 @@
+Suggested title: Guided Doctor checks with animated gesture examples
+
+Short description
+
+Add an optional diagnostic flow that helps a laptop user record useful input
+evidence without needing evtest commands, knowing device numbers, or racing a
+fixed startup timer. A working local prototype was used to collect the input
+recording accompanying the H7606WX gesture proposal.
+
+User flow
+
+- Explain that normal touchpad input remains available while DialPad controls
+  are paused for the check.
+- Show one gesture at a time: corner hold, circle turn, and center press.
+- Animate the expected finger movement and overlay actual touch positions in
+  a distinct color.
+- Wait indefinitely while the user reads and practices. Require an explicit
+  Start for each gesture, then show a five-second countdown.
+- Allow thirty seconds for the gesture, with Finish early, Repeat, and a
+  manually selected Next check. Never auto-start the next recording.
+- Repeat with illumination off and on, so input behavior can be compared.
+- Save a per-step raw touch report and structured summary. Switch illumination
+  off and close input descriptors on completion, cancellation, and errors.
+
+Prototype evidence
+
+The user completed all six checks on an H7606WX. The recording identified
+extra contacts outside the dial and supplied replay data used to verify the
+local gesture changes. The graphical flow, readiness waits, cancellation,
+retries, nonblocking raw reader, report writing, and cleanup error handling
+have offline tests. GUI snapshots in this directory are preview-mode images;
+they do not show or imply a new hardware test.
+
+The local prototype consists of:
+    doctor
+    scripts/doctor_gui.py
+    scripts/touchpad_diagnostics.py
+    scripts/test-doctor.py
+
+New dependencies
+
+PySide6, already used by the optional upstream UI. The prototype needs only
+the Essentials components; capture/report logic uses Python's standard
+library. Existing libevdev bindings are used for the live position display.
+No network service, account, telemetry endpoint, or root daemon is needed.
+
+Before upstream integration
+
+- Use the upstream installation layout and XDG state directory for reports;
+  the prototype currently writes reports beneath its writable project root.
+- Support the configured/user-instance service names and a manual/no-systemd
+  driver session. The prototype knows only our local unit names.
+- Discover supported device/layout adapters instead of restricting discovery
+  to the tested ASCF1A01 H7606WX touchpad.
+- Define whether to offer explicit restoration of the previous DialPad state.
+  The tested prototype intentionally leaves controls paused after the check.
+- Keep raw input collection independent of the GUI, with a CLI fallback.
+- Align app-ID registration, localization, help, preview rendering, and status
+  reporting with the open layout-manager work in PR #55 rather than adding
+  competing UI conventions.
+
+Related work:
+https://github.com/asus-linux-drivers/asus-dialpad-driver/pull/55
+
+This is a feature proposal with a working prototype, not a ready-to-merge
+cross-distribution diagnostic implementation.

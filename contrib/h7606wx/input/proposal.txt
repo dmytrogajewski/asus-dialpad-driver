@@ -1,0 +1,79 @@
+Suggested title: Discuss complete-frame gesture processing and Niri pointer suppression
+
+Tested environment
+
+ASUS ProArt P16 H7606WX; ASCF1A01 2808:0234 touchpad; Fedora 44;
+kernel 7.2.11-200.fc44.x86_64; Niri/Wayland; Python 3.14.8;
+Python libevdev 0.13.1. A local derivative now works for activation,
+deactivation, selection, scrolling, volume, and brightness, confirmed by the
+laptop user. That confirmation covers the local derivative, not an unmodified
+upstream installation or other laptop models/compositors.
+
+Upstream issues to discuss
+
+1. The touchpad listener evaluates gestures after individual input events.
+   ABS_MT_POSITION_X and ABS_MT_POSITION_Y need to be interpreted together at
+   SYN_REPORT boundaries, and ABS_MT_SLOT/TRACKING_ID need to select the
+   intended contact. Reading every coordinate as if it belonged to one finger
+   mixes the dial contact with other contacts elsewhere on a large touchpad.
+
+2. The current hold check runs only while processing incoming events. A
+   stationary activation/deactivation gesture should have a monotonic timer
+   and should toggle once per hold even if no coordinates change.
+
+3. Current pointer suppression uses GNOME/KDE settings, xinput, or synclient.
+   Niri already has focused-window detection, but those pointer-control paths
+   do not provide Niri gesture suppression. The local implementation uses a
+   temporary EVIOCGRAB on the selected physical touchpad during a circle
+   gesture, releasing it on lift/cancellation/exit. This needs compositor and
+   libinput review before adopting it more broadly.
+
+Actual recording evidence
+
+The six Doctor steps recorded input with illumination off and on; there were
+no dropped events. The raw recording contains simultaneous contacts: the
+intended icon/circle contact plus other contacts near the bottom edge. The
+circle coordinates match the existing ProArt P16 geometry. A separate center
+press excerpt lasts about 1.85 seconds.
+
+The three fixtures retain short excerpts from that recording. Absolute times,
+original tracking IDs, EV_MSC scan-clock values, duplicate ABS_X/ABS_Y axes,
+and unchanged SYN-only frames were removed. Relative event timing and the
+multitouch coordinates/button transitions remain. The rotation excerpt ends
+with a contact down; a release was not invented.
+
+    python -s validate-fixtures.py
+
+This exercises reference_gestures.py with no device access, generated keyboard
+events, brightness/volume changes, or service actions. Expected observations:
+
+- A corner hold is recognized despite a second bottom-edge contact.
+- Menu rotation visits Volume, Scroll, and Brightness.
+- With a function already selected, turning produces both directions.
+- A center press changes mode after release without a short mandatory timeout.
+
+Important distinction
+
+The mandatory 0.8-second center-release deadline was a mistake in our local
+rewrite, not an upstream bug. Its fixture records a real human interaction
+that an improved handler should accommodate. The broken brightnessctl '-n 1'
+command was also local and is not an upstream report.
+
+Reference model limitations and integration questions
+
+reference_gestures.py is an executable design reference extracted from the
+working local implementation. It has no production hardware adapter. It does
+not implement upstream single-function profiles, app/modifier-specific
+dispatch, configuration hot reload, or all compositor policies; it must not
+replace the upstream runtime wholesale.
+
+A production integration should retain those features, derive geometry from
+the selected layout, define behavior for multiple contacts inside the dial,
+and verify pointer restoration and active mode across layout/app changes.
+Only contacts outside the relevant controls were ignored in the local fix;
+this is not a general palm-rejection algorithm.
+
+Coordinate with https://github.com/asus-linux-drivers/asus-dialpad-driver/pull/55
+before agreeing on module boundaries and status/overlay interfaces. That open
+PR already adds a runtime/layout-manager architecture. The reduced fixtures
+can be used whichever architecture is chosen.
